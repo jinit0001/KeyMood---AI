@@ -1,0 +1,55 @@
+
+Render · YAML
+# Render Blueprint: backend + Postgres + Redis (Key Value) for a demo deployment.
+# Render dashboard -> New -> Blueprint -> pick this repo.
+databases:
+  - name: keymood-db
+    plan: free
+    databaseName: keymood
+    user: keymood
+ 
+services:
+  - type: keyvalue
+    name: keymood-redis
+    plan: free
+    ipAllowList: []          # internal connections only
+ 
+  - type: web
+    name: keymood-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    # The JWT keypair is generated at build time (a redeploy logs everyone out - fine for a demo).
+    buildCommand: pip install -r requirements.txt && python scripts/generate_dev_keys.py
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health/liveness
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      # "development" keeps DEV_AUTO_VERIFY_EMAIL working (no SMTP server on this deployment).
+      # It also leaves /docs enabled. Fine for a demo; not for real users.
+      - key: APP_ENV
+        value: development
+      - key: DEV_AUTO_VERIFY_EMAIL
+        value: "true"
+      - key: JWT_PRIVATE_KEY_PATH
+        value: ./keys/dev_jwt_private.pem
+      - key: JWT_PUBLIC_KEY_PATH
+        value: ./keys/dev_jwt_public.pem
+      - key: POSTGRES_HOST
+        fromDatabase: { name: keymood-db, property: host }
+      - key: POSTGRES_PORT
+        fromDatabase: { name: keymood-db, property: port }
+      - key: POSTGRES_USER
+        fromDatabase: { name: keymood-db, property: user }
+      - key: POSTGRES_PASSWORD
+        fromDatabase: { name: keymood-db, property: password }
+      - key: POSTGRES_DB
+        fromDatabase: { name: keymood-db, property: database }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: keymood-redis, property: connectionString }
+      # Set in the Render dashboard AFTER the Vercel URL exists, as a JSON list, e.g.
+      #   ["https://keymood-ai.vercel.app"]
+      - key: CORS_ORIGINS
+        sync: false
+ 
