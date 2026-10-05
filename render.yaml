@@ -1,6 +1,3 @@
-
-Render · YAML
-# Render Blueprint: backend + Postgres + Redis (Key Value) for a demo deployment.
 # Render dashboard -> New -> Blueprint -> pick this repo.
 databases:
   - name: keymood-db
